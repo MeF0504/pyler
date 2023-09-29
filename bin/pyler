@@ -1,0 +1,195 @@
+#! /usr/bin/env python3
+
+import os
+from pathlib import Path
+import argparse
+import curses
+from dataclasses import dataclass
+from typing import List, Tuple
+
+
+@dataclass
+class Args:
+    """
+    data class of arguments.
+    """
+    directory: str
+
+
+class CursesWrapper():
+    def __init__(self) -> None:
+        self.debug = True
+
+    def init_win(self) -> None:
+        self.winy, self.winx = self.stdscr.getmaxyx()
+        self.main_h = int(self.winy*2/3)
+        self.det_h = self.winy-self.main_h-1
+        self.win_main = curses.newwin(self.main_h, self.winx, 0, 0)
+        self.win_det = curses.newwin(self.det_h, self.winx, self.main_h, 0)
+
+    def set_color(self) -> None:
+        curses.init_pair(1, curses.COLOR_WHITE, curses.COLOR_BLACK)
+        # directory
+        curses.init_pair(2, curses.COLOR_CYAN, curses.COLOR_BLACK)
+        # detail
+        curses.init_pair(3, curses.COLOR_WHITE, curses.COLOR_GREEN)
+
+    def get_items(self, path: Path,
+                  show_all: bool = False) -> Tuple[List[Path]]:
+        files = []
+        dirs = []
+        for i in path.glob('*'):
+            if not show_all and i.name.startswith('.'):
+                continue
+            if i.is_file():
+                files.append(i)
+            elif i.is_dir():
+                dirs.append(i)
+            else:
+                print(f'whats this? {i}')
+        return [dirs, files]
+
+    def key_enter(self) -> None:
+        if self.select_idx != 0:
+            si = self.show_items[self.select_idx]
+            if si.is_dir():
+                dirs, files = self.get_items(si)
+                if str(si) not in self.opened_item:
+                    for i, df in enumerate(dirs+files):
+                        self.show_items.insert(i+self.select_idx+1, df)
+                    self.opened_item.append(str(si))
+                else:
+                    for f in files:
+                        self.show_items.remove(f)
+                    for d in dirs:
+                        for i in self.show_items.copy():
+                            if str(d) in str(i):
+                                self.show_items.remove(i)
+                                if i.is_dir() and str(i) in self.opened_item:
+                                    self.opened_item.remove(str(i))
+                    self.opened_item.remove(str(si))
+            elif si.is_file():
+                self.update_win_det = True
+
+    def key_down(self) -> None:
+        if self.main_h >= len(self.show_items):
+            # all items shown
+            if self.select_idx < len(self.show_items)-1:
+                self.select_idx += 1
+            self.debug_memo = 'j-1'
+        elif self.main_h+self.show_shift < len(self.show_items):
+            # not bottom
+            self.select_idx += 1
+            if self.select_idx >= self.main_h+self.show_shift:
+                self.show_shift += 1
+            self.debug_memo = 'j-2'
+        else:
+            # bottom
+            if self.select_idx < len(self.show_items)-1:
+                self.select_idx += 1
+            self.debug_memo = 'j-3'
+
+    def key_up(self) -> None:
+        if len(self.show_items) <= self.main_h:
+            # all contents are shown
+            if self.select_idx > 0:
+                self.select_idx -= 1
+            self.debug_memo = 'k-1'
+        elif self.show_shift > 0:
+            # not top
+            self.select_idx -= 1
+            if self.select_idx <= self.show_shift:
+                self.show_shift -= 1
+            self.debug_memo = 'k-2'
+        else:
+            # top
+            if self.select_idx > 0:
+                self.select_idx -= 1
+            self.debug_memo = 'k-3'
+
+    def update_main(self) -> None:
+        self.win_main.clear()
+        if self.debug:
+            self.win_main.addstr(0, int(self.winx/2),
+                                 f'main:{self.winx}x{self.main_h}, det:{self.winx}x{self.det_h}')
+            self.win_main.addstr(1, int(self.winx/2),
+                                 f'sel:{self.select_idx}, shift:{self.show_shift} show_items:{len(self.show_items)}')
+            self.win_main.addstr(2, int(self.winx/2), f'{self.debug_memo}')
+
+        for i in range(self.main_h):
+            if i+self.show_shift >= len(self.show_items):
+                break
+
+            si = self.show_items[i+self.show_shift]
+            shift = ' '*len(si.relative_to(root).parents)
+            if self.select_idx == self.show_shift+i:
+                attr = curses.A_REVERSE
+            elif si.is_dir():
+                attr = curses.color_pair(2)
+            else:
+                attr = curses.A_NORMAL
+
+            if str(si) in self.opened_item:
+                arr = '|'
+            elif si.is_dir():
+                arr = '>'
+            else:
+                arr = '*'
+            self.win_main.addstr(i, 0, f'{shift}{arr} {si.name}', attr)
+        self.win_main.refresh()
+
+    def update_det(self) -> None:
+        self.win_det.clear()
+        si = self.show_items[self.select_idx]
+        self.win_det.addstr(1, 0, si.name)
+        self.win_det.refresh()
+
+    def main(self, stdscr, args: Args) -> None:
+        self.stdscr = stdscr
+        self.stdscr.clear()
+        self.init_win()
+        self.set_color()
+        self.win_main.bkgd(' ', curses.color_pair(1))
+        self.win_det.bkgd(' ', curses.color_pair(3))
+        self.key = ''
+        self.select_idx = 0
+        self.show_shift = 0
+        self.stdscr.refresh()
+
+        dirs, files = self.get_items(root)
+        self.show_items = [root]+dirs + files
+        self.opened_item = []
+
+        while self.key != 'q':
+            self.update_win_det = False
+            self.debug_memo = ''
+
+            if self.key == '':
+                self.update_win_det = True
+            elif self.key in ["\n", 'KEY_ENTER']:
+                self.key_enter()
+            elif self.key in ['j', 'KEY_DOWN']:
+                self.key_down()
+            elif self.key in ['k', 'KEY_UP']:
+                self.key_up()
+
+            self.update_main()
+            if self.update_win_det:
+                self.update_det()
+            self.key = self.stdscr.getkey()
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument('directory', help='root directory', nargs='?')
+    args = parser.parse_args()
+    if args.directory is None:
+        root = Path('.')
+    elif os.path.isdir(args.directory):
+        root = Path(args.directory)
+    else:
+        print(f'incorrect argument: {args.directory}')
+        exit()
+
+    cw = CursesWrapper()
+    curses.wrapper(cw.main, args)
