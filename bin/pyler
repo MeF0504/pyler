@@ -2,6 +2,8 @@
 
 import os
 from pathlib import Path
+import mimetypes
+from importlib import import_module
 import argparse
 import curses
 from dataclasses import dataclass
@@ -19,6 +21,7 @@ class Args:
 class CursesWrapper():
     def __init__(self) -> None:
         self.debug = True
+        self.lib_root = Path(__file__).parent.parent/'lib'
 
     def init_win(self) -> None:
         self.winy, self.winx = self.stdscr.getmaxyx()
@@ -28,11 +31,14 @@ class CursesWrapper():
         self.win_det = curses.newwin(self.det_h, self.winx, self.main_h, 0)
 
     def set_color(self) -> None:
+        # default
         curses.init_pair(1, curses.COLOR_WHITE, curses.COLOR_BLACK)
         # directory
         curses.init_pair(2, curses.COLOR_CYAN, curses.COLOR_BLACK)
         # detail
         curses.init_pair(3, curses.COLOR_WHITE, curses.COLOR_GREEN)
+        # error message
+        curses.init_pair(4, curses.COLOR_RED, curses.COLOR_GREEN)
 
     def get_items(self, path: Path,
                   show_all: bool = False) -> Tuple[List[Path]]:
@@ -141,8 +147,27 @@ class CursesWrapper():
     def update_det(self) -> None:
         self.win_det.clear()
         si = self.show_items[self.select_idx]
-        self.win_det.addstr(1, 0, si.name)
-        self.win_det.refresh()
+        if si.is_dir():
+            self.win_det.refresh()
+            return
+        mtype, _ = mimetypes.guess_type(si.name)
+        if mtype is None:
+            self.win_det.addstr(1, 0, 'Failed to guess the type',
+                                curses.color_pair(4))
+            self.win_det.refresh()
+            return
+        lib_path1 = self.lib_root/f'{mtype}.py'  # sub type lib
+        lib_path2 = lib_path1.parent/'__init__.py'  # type lib
+        if lib_path1.is_file():
+            lib = import_module(lib_path1)
+        elif lib_path2.is_file():
+            lib = import_module(lib_path2)
+        else:
+            self.win_det.addstr(1, 0,
+                                f'Library to open "{mtype}" is not found.',
+                                curses.color_pair(4))
+            self.win_det.refresh()
+            return
 
     def main(self, stdscr, args: Args) -> None:
         self.stdscr = stdscr
