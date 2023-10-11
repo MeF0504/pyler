@@ -1,6 +1,7 @@
 #! /usr/bin/env python3
 
 import os
+import sys
 from pathlib import Path
 import mimetypes
 from importlib import import_module
@@ -8,6 +9,10 @@ import argparse
 import curses
 from dataclasses import dataclass
 from typing import List, Tuple
+
+_lib_root = Path(__file__).parent.parent/'lib'
+sys.path.append(str(_lib_root))
+import pyler_default
 
 
 @dataclass
@@ -21,7 +26,8 @@ class Args:
 class CursesWrapper():
     def __init__(self) -> None:
         self.debug = True
-        self.lib_root = Path(__file__).parent.parent/'lib'
+        self.debug_memo = ''
+        self.debug_memo_det = ''
 
     def init_win(self) -> None:
         self.winy, self.winx = self.stdscr.getmaxyx()
@@ -152,22 +158,27 @@ class CursesWrapper():
             return
         mtype, _ = mimetypes.guess_type(si.name)
         if mtype is None:
-            self.win_det.addstr(1, 0, 'Failed to guess the type',
-                                curses.color_pair(4))
-            self.win_det.refresh()
-            return
-        lib_path1 = self.lib_root/f'{mtype}.py'  # sub type lib
-        lib_path2 = lib_path1.parent/'__init__.py'  # type lib
-        if lib_path1.is_file():
-            lib = import_module(lib_path1)
-        elif lib_path2.is_file():
-            lib = import_module(lib_path2)
+            lib = pyler_default
+            self.debug_memo_det = 'lib None'
+            # info = 'None'
         else:
-            self.win_det.addstr(1, 0,
-                                f'Library to open "{mtype}" is not found.',
-                                curses.color_pair(4))
-            self.win_det.refresh()
-            return
+            # info = mtype
+            lib_path1 = _lib_root/f'{mtype}.py'  # sub type lib
+            lib_path2 = lib_path1.parent/'__init__.py'  # type lib
+            if lib_path1.is_file():
+                lib = import_module(lib_path1.name)
+                self.debug_memo_det = f'lib 1: {mtype}'
+            elif lib_path2.is_file():
+                lib = import_module(lib_path2.parent.name)
+                self.debug_memo_det = f'lib 2: {mtype}'
+            else:
+                lib = pyler_default
+                self.debug_memo_det = 'lib not found'
+        info = lib.main(si)
+        self.win_det.addstr(0, 0, info)
+        if self.debug:
+            self.win_det.addstr(1, int(self.winx/2), f'{self.debug_memo_det}')
+        self.win_det.refresh()
 
     def main(self, stdscr, args: Args) -> None:
         self.stdscr = stdscr
