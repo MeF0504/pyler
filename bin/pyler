@@ -30,11 +30,13 @@ class CursesWrapper():
         self.debug_memo_det = ''
 
     def init_win(self) -> None:
-        self.winy, self.winx = self.stdscr.getmaxyx()
-        self.main_h = int(self.winy*2/3)
-        self.det_h = self.winy-self.main_h-1
-        self.win_main = curses.newwin(self.main_h, self.winx, 0, 0)
-        self.win_det = curses.newwin(self.det_h, self.winx, self.main_h, 0)
+        winy, winx = self.stdscr.getmaxyx()
+        self.det_h = 10
+        self.main_h = winy-self.det_h
+        self.main_w = winx
+        self.det_w = winx
+        self.win_main = curses.newwin(self.main_h, self.main_w, 0, 0)
+        self.win_det = curses.newwin(self.det_h, self.det_w, self.main_h, 0)
 
     def set_color(self) -> None:
         # default
@@ -122,11 +124,11 @@ class CursesWrapper():
     def update_main(self) -> None:
         self.win_main.clear()
         if self.debug:
-            self.win_main.addstr(0, int(self.winx/2),
-                                 f'main:{self.winx}x{self.main_h}, det:{self.winx}x{self.det_h}')
-            self.win_main.addstr(1, int(self.winx/2),
+            self.win_main.addstr(0, int(self.main_w/2),
+                                 f'main:{self.main_w}x{self.main_h}, det:{self.main_w}x{self.det_h}')
+            self.win_main.addstr(1, int(self.main_w/2),
                                  f'sel:{self.select_idx}, shift:{self.show_shift} show_items:{len(self.show_items)}')
-            self.win_main.addstr(2, int(self.winx/2), f'{self.debug_memo}')
+            self.win_main.addstr(2, int(self.main_w/2), f'{self.debug_memo}')
 
         for i in range(self.main_h):
             if i+self.show_shift >= len(self.show_items):
@@ -177,7 +179,7 @@ class CursesWrapper():
         info = lib.main(si)
         self.win_det.addstr(0, 0, info)
         if self.debug:
-            self.win_det.addstr(1, int(self.winx/2), f'{self.debug_memo_det}')
+            self.win_det.addstr(1, int(self.det_w/2), f'{self.debug_memo_det}')
         self.win_det.refresh()
 
     def main(self, stdscr, args: Args) -> None:
