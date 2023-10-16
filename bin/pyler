@@ -168,14 +168,14 @@ class CursesWrapper():
             lib_path1 = _lib_root/f'{mtype}.py'  # sub type lib
             lib_path2 = lib_path1.parent/'__init__.py'  # type lib
             if lib_path1.is_file():
-                lib = import_module(lib_path1.name)
+                lib = import_module(mtype.replace('/', '.'))
                 self.debug_memo_det = f'lib 1: {mtype}'
             elif lib_path2.is_file():
                 lib = import_module(lib_path2.parent.name)
                 self.debug_memo_det = f'lib 2: {mtype}'
             else:
                 lib = pyler_default
-                self.debug_memo_det = 'lib not found'
+                self.debug_memo_det = f'lib not found: {mtype}'
         info = lib.main(si)
         self.win_det.addstr(0, 0, info)
         if self.debug:
