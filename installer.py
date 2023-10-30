@@ -14,7 +14,7 @@ if install_path.exists():
     print(f'{install_path} already exists.')
     exit()
 if not install_path.parent.exists():
-    print('creating directory {install_path.parent}\n')
+    print(f'creating directory {install_path.parent}\n')
     os.mkdir(install_path.parent)
 
 subprocess.run(['git', 'clone', '--recursive',
