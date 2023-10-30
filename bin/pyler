@@ -13,6 +13,7 @@ from typing import List, Tuple
 _lib_root = Path(__file__).parent.parent/'lib'
 sys.path.append(str(_lib_root))
 import pyler_default
+from pymeflib import update
 
 
 @dataclass
@@ -223,6 +224,10 @@ if __name__ == "__main__":
     args = parser.parse_args()
     if args.directory is None:
         root = Path('.')
+    elif args.directory == 'update':
+        root = Path(__file__).parent.parent
+        update.run(str(root))
+        exit()
     elif os.path.isdir(args.directory):
         root = Path(args.directory)
     else:
