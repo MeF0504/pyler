@@ -3,8 +3,6 @@ from pathlib import Path
 
 from PIL import Image
 
-from pyler_default import time_format
-
 
 def get_tag(exif_info, tag_name):
     # https://www.vieas.com/exif23.html
@@ -30,19 +28,16 @@ def get_tag(exif_info, tag_name):
 
 
 def main(item: Path):
-    stat = item.stat()
     with Image.open(item) as img_data:
         width = img_data.width
         height = img_data.height
         img_exif = img_data.getexif()
 
     res = '''
-created: {}
 Exif Date: {}
 Make: {}
 Model: {}
-Size: {}x{}'''.format(time_format(stat.st_birthtime),
-                      get_tag(img_exif, 'DateTime'),
+Size: {}x{}'''.format(get_tag(img_exif, 'DateTime'),
                       get_tag(img_exif, 'Make'),
                       get_tag(img_exif, 'Model'),
                       width, height

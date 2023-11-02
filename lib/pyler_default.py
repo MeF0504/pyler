@@ -24,8 +24,7 @@ def get_size(size_byte: int):
 
 def main(item: Path):
     stat = item.stat()
-    ret = '''
-created: {}
+    ret = '''created: {}
 last update: {}
 file size: {}'''.format(time_format(stat.st_birthtime),
                         time_format(stat.st_mtime),

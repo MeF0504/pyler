@@ -160,8 +160,9 @@ class CursesWrapper():
             self.win_det.refresh()
             return
         mtype, _ = mimetypes.guess_type(si.name)
+        def_info = pyler_default.main(si)
         if mtype is None:
-            lib = pyler_default
+            lib = None
             self.debug_memo_det = 'lib None'
             # info = 'None'
         else:
@@ -175,9 +176,12 @@ class CursesWrapper():
                 lib = import_module(lib_path2.parent.name)
                 self.debug_memo_det = f'lib 2: {mtype}'
             else:
-                lib = pyler_default
+                lib = None
                 self.debug_memo_det = f'lib not found: {mtype}'
-        info = lib.main(si)
+        if lib is None:
+            info = def_info
+        else:
+            info = def_info + lib.main(si)
         self.win_det.addstr(0, 0, info)
         if self.debug:
             self.win_det.addstr(1, int(self.det_w/2), f'{self.debug_memo_det}')
