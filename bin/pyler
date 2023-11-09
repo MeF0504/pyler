@@ -150,7 +150,12 @@ class CursesWrapper():
                 arr = '>'
             else:
                 arr = '*'
-            self.win_main.addstr(i, 0, f'{shift}{arr} {si.name}', attr)
+            show_txt = f'{shift}{arr} {si.name}'
+            if len(show_txt) > self.main_w:
+                si_name = si.name[:self.main_w-3-5-len(shift+arr)-1-1]\
+                    + '...' + si.name[-5:]
+                show_txt = f'{shift}{arr} {si_name}'
+            self.win_main.addstr(i, 0, show_txt, attr)
         self.win_main.refresh()
 
     def update_det(self) -> None:
